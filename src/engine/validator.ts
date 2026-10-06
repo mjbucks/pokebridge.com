@@ -1,4 +1,4 @@
-import { checkConnection } from './connection';
+import { checkRequiredConnection } from './connection';
 import { getPokemonById } from './dataset';
 import type { ChainLink, ConnectionResult, Puzzle } from './types';
 
@@ -82,7 +82,7 @@ export function validateSolution(puzzle: Puzzle, chain: ChainLink[]): Validation
         errors.push(`Link ${i} uses category "${categoryId}", which is not required by this puzzle.`);
         continue;
       }
-      const result = checkConnection(fromRecord, toRecord, slot);
+      const result = checkRequiredConnection(fromRecord, toRecord, slot, puzzle.specificity);
       steps.push(result);
       if (!result.valid) {
         errors.push(`Link ${i} (${fromRecord.name} → ${toRecord.name}) is invalid: ${result.reason}`);

@@ -1,38 +1,37 @@
 import { getCategory } from '../engine/categories';
-import { formatRequiredValue } from '../engine/connection';
 import { getPokemonById } from '../engine/dataset';
-import type { ChainLink, RequiredCategorySlot } from '../engine/types';
+import type { ChainLink, ConnectionResult } from '../engine/types';
 import { PokemonCard } from './PokemonCard';
 
 interface ChainViewProps {
   chain: ChainLink[];
-  required: RequiredCategorySlot[];
+  linkResults: (ConnectionResult | null)[];
   targetId: number;
 }
 
-export function ChainView({ chain, required, targetId }: ChainViewProps) {
+export function ChainView({ chain, linkResults, targetId }: ChainViewProps) {
   return (
     <div className="flex flex-col items-center gap-1">
       {chain.map((link, i) => {
-        const pokemon = getPokemonById(link.pokemonId)!;
         const isStart = i === 0;
         const isTarget = link.pokemonId === targetId && i === chain.length - 1 && chain.length > 1;
-        const slot = link.categoryId ? required.find((s) => s.categoryId === link.categoryId) : null;
+        const result = linkResults[i];
 
         return (
           <div key={`${link.pokemonId}-${i}`} className="flex flex-col items-center gap-1">
-            {slot && (
-              <div className="flex flex-col items-center py-1 text-slate-400 dark:text-slate-500">
-                <span className="text-lg leading-none">↓</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-300">
-                  {getCategory(slot.categoryId).name}
+            {link.categoryId && result && (
+              <div className="flex flex-col items-center py-1.5 text-slate-400 dark:text-slate-500">
+                <span className="text-xl leading-none sm:text-2xl">↓</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-300 sm:text-xs">
+                  {getCategory(link.categoryId).name}
                 </span>
-                <span className="text-xs font-semibold">{formatRequiredValue(slot)}</span>
+                <span className="text-sm font-semibold sm:text-base">{result.sharedValues.join(', ')}</span>
               </div>
             )}
             <PokemonCard
-              pokemon={pokemon}
+              pokemon={getPokemonById(link.pokemonId)!}
               size="sm"
+              label={isStart ? 'Start' : undefined}
               highlight={isStart ? 'start' : isTarget ? 'target' : i === chain.length - 1 ? 'current' : undefined}
             />
           </div>

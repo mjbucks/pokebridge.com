@@ -7,7 +7,7 @@ import { validateSolution } from '../engine/validator';
 import { puzzleToChallengeCode } from '../engine/puzzle';
 import { PokemonSearch } from '../components/PokemonSearch';
 import { formatRequiredValue } from '../engine/connection';
-import type { CategoryId, PokemonRecord, Puzzle } from '../engine/types';
+import type { CategoryId, PokemonRecord, Puzzle, Specificity } from '../engine/types';
 
 const ADMIN_PASSCODE = import.meta.env.VITE_ADMIN_PASSCODE || 'pokebridge-admin';
 
@@ -77,6 +77,7 @@ function AdminTool() {
   const [target, setTarget] = useState<PokemonRecord | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<Set<CategoryId>>(new Set(ALL_CATEGORY_IDS));
   const [categoryCount, setCategoryCount] = useState(6);
+  const [specificity, setSpecificity] = useState<Specificity>('hard');
   const [preferRare, setPreferRare] = useState(false);
   const [preferObscure, setPreferObscure] = useState(false);
   const [generated, setGenerated] = useState<GeneratedPuzzle | null>(null);
@@ -133,7 +134,8 @@ function AdminTool() {
       start: generated.start.id,
       target: generated.target.id,
       required: generated.required,
-      difficulty: 'medium',
+      lengthTier: 'medium',
+      specificity,
       createdAt: new Date().toISOString(),
     };
     const code = puzzleToChallengeCode(puzzle);
@@ -169,15 +171,16 @@ function AdminTool() {
       start: generated.start.id,
       target: generated.target.id,
       required: generated.required,
-      difficulty: 'medium',
+      lengthTier: 'medium',
+      specificity,
       createdAt: new Date().toISOString(),
     };
     return validateSolution(puzzle, generated.solution);
   }, [generated]);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-24 pt-6">
-      <h1 className="font-display text-2xl font-extrabold">Admin Puzzle Creator</h1>
+    <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 pb-24 pt-6 sm:px-8 lg:max-w-3xl">
+      <h1 className="font-display text-2xl font-extrabold sm:text-3xl">Admin Puzzle Creator</h1>
 
       <section className="flex flex-col gap-3 rounded-2xl border-2 border-slate-200 p-4 dark:border-slate-700">
         <div className="flex gap-3">
@@ -218,7 +221,7 @@ function AdminTool() {
           />
         </label>
 
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
           <label className="flex items-center gap-1.5">
             <input type="checkbox" checked={preferRare} onChange={(e) => setPreferRare(e.target.checked)} />
             Prefer rare/uncommon Pokémon
@@ -227,6 +230,23 @@ function AdminTool() {
             <input type="checkbox" checked={preferObscure} onChange={(e) => setPreferObscure(e.target.checked)} />
             Prefer obscure connections
           </label>
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold">Specificity:</span>
+            <div className="flex gap-1 rounded-full border-2 border-slate-200 p-0.5 dark:border-slate-700">
+              {(['easy', 'hard'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSpecificity(mode)}
+                  className={`rounded-full px-3 py-0.5 text-xs font-semibold capitalize ${
+                    specificity === mode ? 'bg-brand-600 text-white' : 'text-slate-500'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">

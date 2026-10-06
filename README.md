@@ -16,6 +16,14 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
+`npm run dev` listens on your LAN (not just localhost), so you can test on
+your phone: with your computer and phone on the same Wi-Fi, open the
+**Network** URL the dev server prints (e.g. `http://192.168.1.x:5173`) in
+your phone's browser. If it doesn't load, your OS firewall is likely
+blocking inbound connections to Node — on Windows, allow Node.js on
+**Private** networks when prompted (or via Windows Defender Firewall
+settings).
+
 ```bash
 npm test            # run the engine test suite once
 npm run test:watch  # watch mode
@@ -25,9 +33,10 @@ npm run build:data   # regenerate src/data/pokemon.json from @pkmn/sim
 ```
 
 Admin tools live at `/admin`, gated by a **soft, client-side-only** passcode
-(`VITE_ADMIN_PASSCODE` env var, default `pokebridge-admin` — see
-`.env.example`). This is not real auth; don't put anything sensitive behind
-it.
+(`VITE_ADMIN_PASSCODE` env var, default `pokebridge-admin`). `.env.example`
+documents the variable, but Vite only reads an actual `.env` file — copy it
+(`cp .env.example .env`) and restart the dev server to set a real passcode.
+This is not real auth; don't put anything sensitive behind it.
 
 ## Architecture
 
@@ -90,10 +99,22 @@ to regenerate; adjust `DEX_SCOPE_MIN`/`DEX_SCOPE_MAX` in
 This is the main design decision that isn't obvious from the spec text:
 every required category slot in a `Puzzle` carries a specific
 `CategoryValue` (e.g. `{ categoryId: 'weakness', types: ['Ground', 'Psychic'] }`),
-not just a bare category name. The player picks an unused category, then
-must find a next Pokémon for which `checkConnection(current, candidate, slot)`
-is valid for *that exact value* — not any shared trait. This is what the
-category chips show up front (e.g. "WEAKNESS — Ground, Psychic").
+not just a bare category name. This is what the category chips show up
+front in **Hard mode** (e.g. "WEAKNESS — Ground, Psychic").
+
+### Easy vs. Hard mode (`Puzzle.specificity`)
+
+Hard mode requires matching that exact assigned value. Easy mode only
+requires matching the category *in general* — any shared type, any shared
+generation, etc — via `checkConnectionAny()` instead of `checkConnection()`.
+Puzzles are generated identically either way; specificity only changes how
+a move is judged (`checkRequiredConnection()` dispatches between the two)
+and what the category chip displays. Because the generator's witness chain
+always picks *one* specific value, that value is automatically a member of
+the easy-mode "any shared value" set — so a puzzle solvable in Hard mode is
+always solvable in Easy mode too (verified in
+`tests/engine/specificity.test.ts`). Daily puzzles keep separate
+easy/hard seeds (and separate streaks) for the same date.
 
 ### Generator strategy
 
@@ -113,6 +134,16 @@ The admin "Test Puzzle" button runs a separate exhaustive (budget-capped)
 solver (`solver.ts`) to report solution count, uniqueness, and every
 connection's reasoning — independent of whatever the generator found.
 
+### Hints that verify reachability, not just the next step
+
+A hint that's merely "locally valid" can walk a player into a dead end a
+few moves later. `buildHint()` in `hints.ts` tries several valid candidates
+and, for each, runs the bounded solver from that candidate to the target
+using the *remaining* categories — the suggested Pokémon is only called
+"safe" once a real solution from there is found. If nothing can be verified
+within budget, the hint still shows a plain valid example but says so
+honestly rather than implying it checked out.
+
 ## Known v1 gaps
 
 - Admin tool doesn't yet support manually hand-building a specific chain
@@ -121,7 +152,7 @@ connection's reasoning — independent of whatever the generator found.
   way there.
 - "Save Puzzle" exports JSON / copies a challenge link; there's no curated
   puzzle pack feeding the Daily mode yet — Daily is fully procedural
-  (seeded by UTC date) rather than hand-picked.
+  (seeded by UTC date + specificity) rather than hand-picked.
 - No backend, by design (per spec) — daily streaks and challenge codes are
   client-side only (`localStorage` / URL-encoded puzzle state).
 - JS bundle is ~680KB un-gzipped (~124KB gzipped), mostly the 1025-entry

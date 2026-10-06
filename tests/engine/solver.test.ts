@@ -24,7 +24,8 @@ describe('solvePuzzle', () => {
         start: generated.start.id,
         target: generated.target.id,
         required: solved.required,
-        difficulty: 'medium',
+        lengthTier: 'medium',
+        specificity: 'hard',
         createdAt: new Date().toISOString(),
       };
       expect(validateSolution(puzzle, solved.chain).valid).toBe(true);

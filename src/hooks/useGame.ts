@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { checkConnection, formatRequiredValue } from '../engine/connection';
+import { checkRequiredConnection, formatRequiredValue } from '../engine/connection';
 import { getPokemonById } from '../engine/dataset';
-import { findValidCandidates } from '../engine/hints';
+import { buildHint, type HintResult } from '../engine/hints';
+import { createRng } from '../engine/rng';
 import { validateSolution } from '../engine/validator';
 import type { CategoryId, ChainLink, ConnectionResult, Puzzle } from '../engine/types';
 
@@ -13,6 +14,10 @@ export interface FeedbackState {
 
 export function useGame(puzzle: Puzzle) {
   const [chain, setChain] = useState<ChainLink[]>([{ pokemonId: puzzle.start, categoryId: null }]);
+  // Parallel to `chain` (index i describes the connection INTO chain[i]; index 0 is null for the start)
+  // — kept purely for display, so the chain can show the *actual* shared value used, which matters in
+  // Easy mode where the player might not have matched the puzzle's originally assigned value.
+  const [linkResults, setLinkResults] = useState<(ConnectionResult | null)[]>([null]);
   const [usedCategories, setUsedCategories] = useState<Set<CategoryId>>(new Set());
   const [selectedCategoryId, setSelectedCategoryId] = useState<CategoryId | null>(null);
   const [wrongGuesses, setWrongGuesses] = useState(0);
@@ -29,6 +34,7 @@ export function useGame(puzzle: Puzzle) {
   );
 
   const isWon = finishedAt !== null;
+  const canUndo = chain.length > 1 && !isWon;
 
   const selectCategory = useCallback(
     (categoryId: CategoryId) => {
@@ -60,7 +66,7 @@ export function useGame(puzzle: Puzzle) {
         return;
       }
 
-      const result = checkConnection(currentPokemon, candidate, slot);
+      const result = checkRequiredConnection(currentPokemon, candidate, slot, puzzle.specificity);
       setFeedback({ result, fromName: currentPokemon.name, toName: candidate.name });
 
       if (!result.valid) {
@@ -70,6 +76,7 @@ export function useGame(puzzle: Puzzle) {
 
       const nextChain = [...chain, { pokemonId: candidate.id, categoryId: selectedCategoryId }];
       setChain(nextChain);
+      setLinkResults((prev) => [...prev, result]);
       setUsedCategories((prev) => new Set(prev).add(selectedCategoryId));
       setSelectedCategoryId(null);
 
@@ -82,25 +89,52 @@ export function useGame(puzzle: Puzzle) {
     [chain, currentPokemon, isWon, puzzle, selectedCategoryId],
   );
 
-  const requestHint = useCallback(() => {
+  const undo = useCallback(() => {
+    if (!canUndo) return;
+    const removed = chain[chain.length - 1];
+    setChain((prev) => prev.slice(0, -1));
+    setLinkResults((prev) => prev.slice(0, -1));
+    if (removed.categoryId) {
+      setUsedCategories((prev) => {
+        const next = new Set(prev);
+        next.delete(removed.categoryId!);
+        return next;
+      });
+    }
+    setSelectedCategoryId(null);
+    setFeedback(null);
+  }, [canUndo, chain]);
+
+  const requestHint = useCallback((): HintResult | null => {
     if (selectedCategoryId === null || isWon) return null;
     const slot = puzzle.required.find((s) => s.categoryId === selectedCategoryId);
     if (!slot) return null;
     const excludeIds = new Set(chain.map((link) => link.pokemonId));
-    const candidates = findValidCandidates(currentPokemon, slot, excludeIds);
+    const target = getPokemonById(puzzle.target)!;
+    const remainingAfterThis = unusedSlots.filter((s) => s.categoryId !== selectedCategoryId);
+    const hint = buildHint(
+      currentPokemon,
+      slot,
+      remainingAfterThis,
+      target,
+      excludeIds,
+      puzzle.specificity,
+      createRng(Date.now()),
+    );
     setHintsUsed((n) => n + 1);
-    if (candidates.length === 0) return { count: 0, example: null };
-    const example = candidates[Math.floor(Math.random() * candidates.length)];
-    return { count: candidates.length, example };
-  }, [chain, currentPokemon, isWon, puzzle.required, selectedCategoryId]);
+    return hint;
+  }, [chain, currentPokemon, isWon, puzzle.required, puzzle.specificity, puzzle.target, selectedCategoryId, unusedSlots]);
 
   return {
     chain,
+    linkResults,
     currentPokemon,
     unusedSlots,
     selectedCategoryId,
     selectCategory,
     attemptConnection,
+    undo,
+    canUndo,
     requestHint,
     feedback,
     wrongGuesses,

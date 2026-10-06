@@ -1,16 +1,23 @@
-import type { CategoryValue, RequiredCategorySlot } from './types';
+import type { CategoryValue, RequiredCategorySlot, Specificity } from './types';
 
 interface EncodedPuzzle {
   s: number;
   t: number;
   r: { c: RequiredCategorySlot['categoryId']; v: CategoryValue }[];
+  x?: Specificity;
 }
 
-export function encodePuzzleCode(start: number, target: number, required: RequiredCategorySlot[]): string {
+export function encodePuzzleCode(
+  start: number,
+  target: number,
+  required: RequiredCategorySlot[],
+  specificity: Specificity = 'hard',
+): string {
   const payload: EncodedPuzzle = {
     s: start,
     t: target,
     r: required.map((slot) => ({ c: slot.categoryId, v: slot.value })),
+    x: specificity,
   };
   const json = JSON.stringify(payload);
   const bytes = new TextEncoder().encode(json);
@@ -22,7 +29,7 @@ export function encodePuzzleCode(start: number, target: number, required: Requir
 
 export function decodePuzzleCode(
   code: string,
-): { start: number; target: number; required: RequiredCategorySlot[] } | null {
+): { start: number; target: number; required: RequiredCategorySlot[]; specificity: Specificity } | null {
   try {
     const base64 = code.replace(/-/g, '+').replace(/_/g, '/');
     const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
@@ -41,7 +48,7 @@ export function decodePuzzleCode(
       value: entry.v,
     }));
 
-    return { start: parsed.s, target: parsed.t, required };
+    return { start: parsed.s, target: parsed.t, required, specificity: parsed.x === 'easy' ? 'easy' : 'hard' };
   } catch {
     return null;
   }

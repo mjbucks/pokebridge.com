@@ -3,22 +3,23 @@ import { getPokemonById } from './dataset';
 import { createRng, hashString, randomInt, type RNG } from './rng';
 import { generateRandomPuzzle, type GeneratedPuzzle } from './generator';
 import { decodePuzzleCode, encodePuzzleCode } from './puzzleCode';
-import type { CategoryId, Puzzle } from './types';
+import type { CategoryId, Puzzle, Specificity } from './types';
 
-function difficultyFor(categoryCount: number): Puzzle['difficulty'] {
+function lengthTierFor(categoryCount: number): Puzzle['lengthTier'] {
   if (categoryCount <= 6) return 'easy';
   if (categoryCount <= 8) return 'medium';
   return 'hard';
 }
 
-function toPuzzle(id: string, mode: Puzzle['mode'], generated: GeneratedPuzzle): Puzzle {
+function toPuzzle(id: string, mode: Puzzle['mode'], generated: GeneratedPuzzle, specificity: Specificity): Puzzle {
   return {
     id,
     mode,
     start: generated.start.id,
     target: generated.target.id,
     required: generated.required,
-    difficulty: difficultyFor(generated.required.length),
+    lengthTier: lengthTierFor(generated.required.length),
+    specificity,
     createdAt: new Date().toISOString(),
   };
 }
@@ -29,6 +30,7 @@ export interface SoloPuzzleOptions {
   maxCategories?: number;
   preferRare?: boolean;
   preferObscure?: boolean;
+  specificity?: Specificity;
   rng?: RNG;
 }
 
@@ -44,7 +46,10 @@ export function buildSoloRandomPuzzle(options: SoloPuzzleOptions = {}): { puzzle
     preferRare: options.preferRare,
     preferObscure: options.preferObscure,
   });
-  return { puzzle: toPuzzle(`solo-${Date.now()}`, 'solo', generated), generated };
+  return {
+    puzzle: toPuzzle(`solo-${Date.now()}`, 'solo', generated, options.specificity ?? 'hard'),
+    generated,
+  };
 }
 
 /** YYYY-MM-DD in UTC, so every player on a given calendar day gets the same puzzle. */
@@ -52,19 +57,23 @@ export function todayUtcDateString(date: Date = new Date()): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildDailyPuzzle(dateStr: string, categoryPool: CategoryId[] = ALL_CATEGORY_IDS): {
-  puzzle: Puzzle;
-  generated: GeneratedPuzzle;
-} {
-  const seed = hashString(`pokebridge-daily-v1-${dateStr}`);
+export function buildDailyPuzzle(
+  dateStr: string,
+  specificity: Specificity = 'hard',
+  categoryPool: CategoryId[] = ALL_CATEGORY_IDS,
+): { puzzle: Puzzle; generated: GeneratedPuzzle } {
+  const seed = hashString(`pokebridge-daily-v1-${specificity}-${dateStr}`);
   const rng = createRng(seed);
   const categoryCount = randomInt(5, 10, rng);
   const generated = generateRandomPuzzle({ categoryPool, categoryCount, rng });
-  return { puzzle: toPuzzle(`daily-${dateStr}`, 'daily', generated), generated };
+  return {
+    puzzle: toPuzzle(`daily-${specificity}-${dateStr}`, 'daily', generated, specificity),
+    generated,
+  };
 }
 
 export function puzzleToChallengeCode(puzzle: Puzzle): string {
-  return encodePuzzleCode(puzzle.start, puzzle.target, puzzle.required);
+  return encodePuzzleCode(puzzle.start, puzzle.target, puzzle.required, puzzle.specificity);
 }
 
 export function puzzleFromChallengeCode(code: string): Puzzle | null {
@@ -79,7 +88,8 @@ export function puzzleFromChallengeCode(code: string): Puzzle | null {
     start: decoded.start,
     target: decoded.target,
     required: decoded.required,
-    difficulty: difficultyFor(decoded.required.length),
+    lengthTier: lengthTierFor(decoded.required.length),
+    specificity: decoded.specificity,
     createdAt: new Date().toISOString(),
   };
 }

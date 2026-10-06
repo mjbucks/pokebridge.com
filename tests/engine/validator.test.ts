@@ -14,7 +14,8 @@ function makePuzzle(seed: number) {
     start: generated.start.id,
     target: generated.target.id,
     required: generated.required,
-    difficulty: 'medium',
+    lengthTier: 'medium',
+    specificity: 'hard',
     createdAt: new Date().toISOString(),
   };
   return { puzzle, generated };

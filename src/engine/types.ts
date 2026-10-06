@@ -124,13 +124,25 @@ export interface RequiredCategorySlot {
   value: CategoryValue;
 }
 
+/**
+ * 'hard' requires matching the exact assigned value (e.g. "Generation 1").
+ * 'easy' only requires matching the category in general (any shared
+ * generation, any shared type, etc). Puzzles are generated identically
+ * either way — specificity only changes how a player's move is judged and
+ * what's shown on the category chip — so a hard-mode-solvable puzzle is
+ * always easy-mode-solvable too.
+ */
+export type Specificity = 'easy' | 'hard';
+
 export interface Puzzle {
   id: string;
   mode: 'daily' | 'solo' | 'challenge' | 'admin';
   start: number;
   target: number;
   required: RequiredCategorySlot[];
-  difficulty: 'easy' | 'medium' | 'hard';
+  /** Rough difficulty label derived from category count, for display only. */
+  lengthTier: 'easy' | 'medium' | 'hard';
+  specificity: Specificity;
   createdAt: string;
 }
 

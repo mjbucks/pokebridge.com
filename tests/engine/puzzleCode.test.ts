@@ -26,7 +26,8 @@ describe('puzzle challenge codes', () => {
       start: generated.start.id,
       target: generated.target.id,
       required: generated.required,
-      difficulty: 'medium',
+      lengthTier: 'medium',
+      specificity: 'hard',
       createdAt: new Date().toISOString(),
     };
     const code = puzzleToChallengeCode(puzzle);

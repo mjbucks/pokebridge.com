@@ -1,4 +1,5 @@
 import { useLocalStorage } from './useLocalStorage';
+import type { Specificity } from '../engine/types';
 
 export interface DailyRecord {
   completed: boolean;
@@ -25,8 +26,9 @@ function computeStreak(history: DailyHistory, todayStr: string): number {
   return streak;
 }
 
-export function useDailyProgress(todayStr: string) {
-  const [history, setHistory] = useLocalStorage<DailyHistory>('pokebridge:daily-history', {});
+/** Easy and Hard daily puzzles are different challenges, so each keeps its own history/streak. */
+export function useDailyProgress(todayStr: string, specificity: Specificity) {
+  const [history, setHistory] = useLocalStorage<DailyHistory>(`pokebridge:daily-history:${specificity}`, {});
 
   const recordCompletion = (record: DailyRecord) => {
     setHistory((prev) => ({ ...prev, [todayStr]: record }));

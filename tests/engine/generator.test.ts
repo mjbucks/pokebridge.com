@@ -30,7 +30,8 @@ describe('generateRandomPuzzle', () => {
         start: generated.start.id,
         target: generated.target.id,
         required: generated.required,
-        difficulty: 'medium',
+        lengthTier: 'medium',
+        specificity: 'hard',
         createdAt: new Date().toISOString(),
       };
       const result = validateSolution(puzzle, generated.solution);
@@ -69,7 +70,8 @@ describe('generatePuzzleBetween', () => {
       start: start.id,
       target: target.id,
       required: generated.required,
-      difficulty: 'medium',
+      lengthTier: 'medium',
+      specificity: 'hard',
       createdAt: new Date().toISOString(),
     };
     expect(validateSolution(puzzle, generated.solution).valid).toBe(true);
